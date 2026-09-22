@@ -8,6 +8,7 @@ class Autotyper < Formula
   license "MIT"
   head "https://github.com/JuanIsernGhosn/autotyper.git", branch: "main"
 
+  depends_on "libyaml"
   depends_on :macos
   depends_on "python@3.14"
 
@@ -52,7 +53,20 @@ class Autotyper < Formula
   end
 
   def install
-    virtualenv_install_with_resources
+    venv = virtualenv_create(libexec, "python3.14")
+    resources.each do |r|
+      if r.name == "pynput"
+        # pynput's setup_requires pulls in twine (and nh3, which needs Rust)
+        # only to publish the package. Not needed to build it.
+        r.stage do
+          inreplace "setup.py", "    setup_requires=RUNTIME_PACKAGES + SETUP_PACKAGES,\n", ""
+          venv.pip_install Pathname.pwd
+        end
+      else
+        venv.pip_install r
+      end
+    end
+    venv.pip_install_and_link buildpath
   end
 
   def caveats
